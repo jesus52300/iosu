@@ -1,0 +1,44 @@
+name: Build iosu IPA
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install pods
+        run: |
+          pod repo update
+          pod install
+
+      - name: List schemes (debug)
+        run: xcodebuild -list -workspace iosu.xcworkspace
+
+      - name: Build (unsigned)
+        run: |
+          xcodebuild -workspace iosu.xcworkspace \
+            -scheme iosu \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY=""
+
+      - name: Package IPA
+        run: |
+          mkdir -p Payload
+          cp -r build/Build/Products/Release-iphoneos/iosu.app Payload/
+          zip -r iosu.ipa Payload
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: iosu-ipa
+          path: iosu.ipa
